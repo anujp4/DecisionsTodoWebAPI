@@ -1,9 +1,19 @@
-﻿namespace DecisionsTodoWebAPI.Models
+﻿using System.ComponentModel.DataAnnotations;
+
+namespace DecisionsTodoWebAPI.Models
 {
 	public class UpdateTodoModel
 	{
-		public required string priority { get; set; }
-		public required string description { get; set; }
-		public required string profile { get; set; }
+		[Required]
+		[StringLength(20)]
+		public string priority { get; set; }
+
+		[Required]
+		[StringLength(500)]
+		public string description { get; set; }
+
+		[Required]
+		[StringLength(20)]
+		public string profile { get; set; }
 	}
 }

@@ -2,6 +2,7 @@
 using DecisionsTodoWebAPI.Models;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 
 namespace DecisionsTodoWebAPI.Controllers
 {
@@ -9,11 +10,15 @@ namespace DecisionsTodoWebAPI.Controllers
 	[ApiController]
 	public class TodoController : ControllerBase
 	{
-		public readonly ApplicationDbContext dbContext;
-		public TodoController(ApplicationDbContext dbContext)
+		private readonly ApplicationDbContext dbContext;
+		private readonly ILogger<TodoController> logger;
+
+		public TodoController(ApplicationDbContext dbContext, ILogger<TodoController> logger)
 		{
 			this.dbContext = dbContext;
+			this.logger = logger;
 		}
+
 		[HttpGet]
 		public IActionResult GetAllTodos()
 		{
@@ -24,9 +29,14 @@ namespace DecisionsTodoWebAPI.Controllers
 			}
 			catch (Exception ex)
 			{
-				return BadRequest(ex.Message);
+				logger.LogError(ex, "Error retrieving all todos.");
+				return StatusCode(StatusCodes.Status500InternalServerError, new
+				{
+					error = "An unexpected error occurred while retrieving todos."
+				});
 			}
 		}
+
 		[HttpGet]
 		[Route("{id:guid}")]
 		public IActionResult GetTodoById(Guid id)
@@ -36,18 +46,28 @@ namespace DecisionsTodoWebAPI.Controllers
 				var employee = dbContext.TododataDbset.Find(id);
 				if (employee == null)
 				{
-					return NotFound();
+					return NotFound(new { error = "Todo item not found." });
 				}
 				return Ok(employee);
 			}
 			catch (Exception ex)
 			{
-				return BadRequest(ex.Message);
+				logger.LogError(ex, $"Error retrieving todo with id {id}.");
+				return StatusCode(StatusCodes.Status500InternalServerError, new
+				{
+					error = "An unexpected error occurred while retrieving the todo item."
+				});
 			}
 		}
+
 		[HttpPost]
 		public IActionResult AddTodo(AddTodoModel addTodoModel)
 		{
+			if (!ModelState.IsValid)
+			{
+				return BadRequest(new { error = "Invalid input.", details = ModelState });
+			}
+
 			try
 			{
 				var todoEntity = new Tododata()
@@ -58,23 +78,33 @@ namespace DecisionsTodoWebAPI.Controllers
 				};
 				dbContext.TododataDbset.Add(todoEntity);
 				dbContext.SaveChanges();
-				return Ok();
+				return Ok(todoEntity);
 			}
 			catch (Exception ex)
 			{
-				return BadRequest(ex.Message);
+				logger.LogError(ex, "Error adding new todo.");
+				return StatusCode(StatusCodes.Status500InternalServerError, new
+				{
+					error = "An unexpected error occurred while adding the todo item."
+				});
 			}
 		}
+
 		[HttpPut]
 		[Route("{id:guid}")]
 		public IActionResult UpdateTodo(Guid id, UpdateTodoModel updateTodoModel)
 		{
+			if (!ModelState.IsValid)
+			{
+				return BadRequest(new { error = "Invalid input.", details = ModelState });
+			}
+
 			try
 			{
 				var todoEntity = dbContext.TododataDbset.Find(id);
 				if (todoEntity == null)
 				{
-					return NotFound("todoEntity does not exist");
+					return NotFound(new { error = "Todo item not found." });
 				}
 				todoEntity.priority = updateTodoModel.priority;
 				todoEntity.description = updateTodoModel.description;
@@ -84,9 +114,14 @@ namespace DecisionsTodoWebAPI.Controllers
 			}
 			catch (Exception ex)
 			{
-				return BadRequest(ex.Message);
+				logger.LogError(ex, $"Error updating todo with id {id}.");
+				return StatusCode(StatusCodes.Status500InternalServerError, new
+				{
+					error = "An unexpected error occurred while updating the todo item."
+				});
 			}
 		}
+
 		[HttpDelete]
 		[Route("{id:guid}")]
 		public IActionResult DeleteTodo(Guid id)
@@ -96,15 +131,19 @@ namespace DecisionsTodoWebAPI.Controllers
 				var employee = dbContext.TododataDbset.Find(id);
 				if (employee == null)
 				{
-					return NotFound();
+					return NotFound(new { error = "Todo item not found." });
 				}
 				dbContext.TododataDbset.Remove(employee);
 				dbContext.SaveChanges();
-				return Ok();
+				return Ok(new { message = "Todo item deleted successfully." });
 			}
 			catch (Exception ex)
 			{
-				return BadRequest(ex.Message);
+				logger.LogError(ex, $"Error deleting todo with id {id}.");
+				return StatusCode(StatusCodes.Status500InternalServerError, new
+				{
+					error = "An unexpected error occurred while deleting the todo item."
+				});
 			}
 		}
 	}
